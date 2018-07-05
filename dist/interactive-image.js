@@ -887,6 +887,14 @@ var _performanceNow = __webpack_require__(/*! performance-now */ "./node_modules
 
 var _performanceNow2 = _interopRequireDefault(_performanceNow);
 
+var _resize = __webpack_require__(/*! ./event/resize */ "./src/js/event/resize.js");
+
+var _resize2 = _interopRequireDefault(_resize);
+
+var _scene = __webpack_require__(/*! ./scene */ "./src/js/scene.js");
+
+var _scene2 = _interopRequireDefault(_scene);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -895,16 +903,16 @@ var App = function () {
     /**
      * @param items
      * @param {object} settings
-     * @param $image
      */
-    function App(items, settings, $image) {
+    function App(items, settings) {
         _classCallCheck(this, App);
 
+        this.scene = null;
         this.items = items;
         this.settings = settings;
-        this.$image = $image;
         this.itemHelper = new _itemHelper2.default();
         this.logHelper = new _logHelper2.default(settings.debug);
+        this.$image = null;
     }
 
     /**
@@ -926,6 +934,8 @@ var App = function () {
         }
 
         /**
+         * Create content container
+         *
          * @param {object} options
          * @returns {jQuery|HTMLElement}
          */
@@ -937,14 +947,9 @@ var App = function () {
 
             var type = options.type;
             delete options.type;
-
             this.logHelper.log(JSON.stringify(options), null, 'blue');
 
             var element = new _factory2.default(type, options);
-
-            if (!this.$image.hasClass('interactive-image')) {
-                this.$image.addClass('interactive-image');
-            }
 
             this.$image.append(element.createHotspotElement());
 
@@ -953,14 +958,30 @@ var App = function () {
 
             return $(element.renderHtml());
         }
+    }, {
+        key: "buildContainer",
+        value: function buildContainer($imageElement) {
+            var start = (0, _performanceNow2.default)();
+
+            this.scene = new _scene2.default($imageElement);
+
+            var divElement = this.scene.createContainer();
+            $(divElement).insertAfter($imageElement);
+            this.$image = $(divElement);
+
+            $imageElement.remove();
+
+            var end = (0, _performanceNow2.default)();
+            this.logHelper.log('Scene built', end - start);
+        }
 
         /**
          * @param items
          */
 
     }, {
-        key: "buildElements",
-        value: function buildElements(items) {
+        key: "buildContent",
+        value: function buildContent(items) {
             var start = (0, _performanceNow2.default)();
             for (var i in items) {
                 if (items.hasOwnProperty(i)) {
@@ -974,17 +995,20 @@ var App = function () {
     }, {
         key: "positionItems",
         value: function positionItems() {
-            var start = (0, _performanceNow2.default)(),
-                $items = this.$image.find('.item');
+            var start = (0, _performanceNow2.default)();
+            var $items = this.$image.find('.item');
 
             var _this = this;
             $.each($items, function () {
-                var $hotspot = $('div[data-for="' + $(this).attr('data-id') + '"]'),
-                    width = $(this).width();
-                var left = 0,
-                    top = 0;
+                var $hotSpot = $('div[data-for="' + $(this).attr('data-id') + '"]');
+                var itemOriginalWidth = $(this).width();
+                var hotSpotLeft = parseInt($hotSpot.css('left'), 10);
+                var hotSpotTop = parseInt($hotSpot.css('top'), 10);
 
-                var _this$itemHelper$calc = _this.itemHelper.calculateInitialContainerPosition(parseInt($hotspot.css('left'), 10), parseInt($hotspot.css('top'), 10), width);
+                var left = 0;
+                var top = 0;
+
+                var _this$itemHelper$calc = _this.itemHelper.calculateContainerPosition(hotSpotLeft, hotSpotTop, itemOriginalWidth);
 
                 var _this$itemHelper$calc2 = _slicedToArray(_this$itemHelper$calc, 2);
 
@@ -994,7 +1018,8 @@ var App = function () {
 
                 $(this).css('left', left);
                 $(this).css('top', top);
-                $(this).find('.arrow-up').css('left', _this.itemHelper.calculateInitialArrowPosition(width));
+
+                $(this).find('.arrow-up').css('left', _this.itemHelper.calculateArrowPosition(itemOriginalWidth));
             });
 
             var end = (0, _performanceNow2.default)();
@@ -1002,28 +1027,28 @@ var App = function () {
         }
     }, {
         key: "execute",
-        value: function execute() {
+        value: function execute($imageElement) {
             var _this2 = this;
 
             try {
-                var start = (0, _performanceNow2.default)();
-
                 this.checkSettings(this.settings);
-                this.buildElements(this.items);
 
-                if (this.$image.find('img').length) {
-                    (0, _imagesloaded2.default)(this.$image, function () {
-                        _this2.logHelper.log('Images loaded');
+                (0, _imagesloaded2.default)($imageElement.parent(), function () {
+                    _this2.buildContainer($imageElement);
+                    _this2.buildContent(_this2.items);
+
+                    if (_this2.$image.find('img').length) {
+                        (0, _imagesloaded2.default)(_this2.$image, function () {
+                            _this2.logHelper.log('Images loaded');
+                            _this2.positionItems();
+                        });
+                    } else {
                         _this2.positionItems();
-                    });
-                } else {
-                    this.positionItems();
-                }
+                    }
 
-                new _hover2.default().bindAll(this.$image);
-
-                var end = (0, _performanceNow2.default)();
-                this.logHelper.log('Execution completed', end - start);
+                    new _hover2.default().bindAll(_this2.$image);
+                    new _resize2.default().bind(_this2.$image, _this2.scene.getWidth());
+                });
             } catch (exception) {
                 this.logHelper.log(exception.message, null, 'red');
             }
@@ -1160,6 +1185,63 @@ module.exports = exports['default'];
 
 /***/ }),
 
+/***/ "./src/js/event/resize.js":
+/*!********************************!*\
+  !*** ./src/js/event/resize.js ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _itemHelper = __webpack_require__(/*! ../helper/itemHelper */ "./src/js/helper/itemHelper.js");
+
+var _itemHelper2 = _interopRequireDefault(_itemHelper);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Resize = function () {
+    function Resize() {
+        _classCallCheck(this, Resize);
+
+        this.itemHelper = new _itemHelper2.default();
+    }
+
+    _createClass(Resize, [{
+        key: "bind",
+        value: function bind($image, originalWidth) {
+            var timeout;
+            var _this = this;
+
+            $(window).on('resize', function () {
+                clearTimeout(timeout);
+                timeout = setTimeout(_this.recalculatePositions($image, originalWidth), 250);
+            });
+        }
+    }, {
+        key: "recalculatePositions",
+        value: function recalculatePositions($image, originalWidth) {
+            console.log($(window).width());
+        }
+    }]);
+
+    return Resize;
+}();
+
+exports.default = Resize;
+module.exports = exports["default"];
+
+/***/ }),
+
 /***/ "./src/js/helper/domHelper.js":
 /*!************************************!*\
   !*** ./src/js/helper/domHelper.js ***!
@@ -1241,7 +1323,7 @@ var ItemHelper = function () {
     }
 
     _createClass(ItemHelper, [{
-        key: 'calculateInitialContainerPosition',
+        key: 'calculateContainerPosition',
 
         /**
          * @param {number} hotspotLeft
@@ -1249,7 +1331,7 @@ var ItemHelper = function () {
          * @param {number} width
          * @returns {*[]}
          */
-        value: function calculateInitialContainerPosition(hotspotLeft, hotspotTop, width) {
+        value: function calculateContainerPosition(hotspotLeft, hotspotTop, width) {
             return [hotspotLeft + 15 - width / 2, hotspotTop + 40];
         }
 
@@ -1259,13 +1341,12 @@ var ItemHelper = function () {
          */
 
     }, {
-        key: 'calculateInitialArrowPosition',
-        value: function calculateInitialArrowPosition(width) {
+        key: 'calculateArrowPosition',
+        value: function calculateArrowPosition(width) {
             return width / 2 - 7;
         }
 
-        /**
-         * Generate an unique id
+        /** Generate an unique id
          *
          * @param {string=''} prefix
          * @returns {string}
@@ -1381,7 +1462,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
         options = $.extend(defaults, options);
 
         return this.each(function () {
-            new _app2.default(items, options, $(_this)).execute();
+            new _app2.default(items, options).execute($(_this));
         });
     };
 })(jQuery, window, document);
@@ -1800,6 +1881,85 @@ var TextItem = function (_BaseItem) {
 }(_baseItem2.default);
 
 exports.default = TextItem;
+module.exports = exports['default'];
+
+/***/ }),
+
+/***/ "./src/js/scene.js":
+/*!*************************!*\
+  !*** ./src/js/scene.js ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _domHelper = __webpack_require__(/*! ./helper/domHelper */ "./src/js/helper/domHelper.js");
+
+var _domHelper2 = _interopRequireDefault(_domHelper);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Scene = function () {
+    function Scene($imageElement) {
+        _classCallCheck(this, Scene);
+
+        this.domHelper = new _domHelper2.default();
+        this.width = $imageElement.width();
+        this.height = $imageElement.height();
+        this.url = $imageElement.attr('src');
+    }
+
+    /**
+     * @returns {number}
+     */
+
+
+    _createClass(Scene, [{
+        key: 'getWidth',
+        value: function getWidth() {
+            return this.width;
+        }
+
+        /**
+         * @returns {number}
+         */
+
+    }, {
+        key: 'getHeight',
+        value: function getHeight() {
+            return this.height;
+        }
+
+        /**
+         * @returns {HTMLElement}
+         */
+
+    }, {
+        key: 'createContainer',
+        value: function createContainer() {
+            var element = this.domHelper.createElement('div', 'interactive-image');
+            element.style.height = this.height + 'px';
+            element.style.width = 'auto';
+            element.style.backgroundImage = "url('" + this.url + "')";
+
+            return element;
+        }
+    }]);
+
+    return Scene;
+}();
+
+exports.default = Scene;
 module.exports = exports['default'];
 
 /***/ }),

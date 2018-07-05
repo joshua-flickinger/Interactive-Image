@@ -3,7 +3,10 @@
   position: relative;
   z-index: 8;
   caret-color: transparent;
-  cursor: default; }
+  cursor: default;
+  background-size: contain;
+  background-repeat: no-repeat;
+  min-width: 600px; }
   .interactive-image .hotspot {
     position: absolute;
     z-index: 16;

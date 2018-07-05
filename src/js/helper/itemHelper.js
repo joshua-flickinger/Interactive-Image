@@ -5,7 +5,7 @@ export default class ItemHelper {
      * @param {number} width
      * @returns {*[]}
      */
-    calculateInitialContainerPosition(hotspotLeft, hotspotTop, width) {
+    calculateContainerPosition(hotspotLeft, hotspotTop, width) {
         return [
             hotspotLeft + 15 - width / 2,
             hotspotTop + 40
@@ -16,12 +16,11 @@ export default class ItemHelper {
      * @param {number} width
      * @returns {number}
      */
-    calculateInitialArrowPosition(width) {
+    calculateArrowPosition(width) {
         return width / 2 - 7;
     }
 
-    /**
-     * Generate an unique id
+    /** Generate an unique id
      *
      * @param {string=''} prefix
      * @returns {string}

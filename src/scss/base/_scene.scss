@@ -4,6 +4,9 @@
   z-index: 8;
   caret-color: transparent;
   cursor: default;
+  background-size: contain;
+  background-repeat: no-repeat;
+  min-width: 600px;
 
   .hotspot {
     position: absolute;
